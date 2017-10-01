@@ -1,0 +1,203 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>hr.zlatko.app</groupId>
+	<artifactId>java8-concurrency</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0-SNAPSHOT</version>
+	<name>java8-concurrency</name>
+	<url>http://maven.apache.org</url>
+
+	<properties>
+		<jdk.version>1.8</jdk.version>
+		<project.build.sourceEncoding>UTF8</project.build.sourceEncoding>
+		<junit.version>4.12</junit.version>
+		<akka.version>2.5.3</akka.version>
+
+		<maven.compiler.version>3.5</maven.compiler.version>
+		<maven.assembly.version>2.6</maven.assembly.version>
+		<maven.release.version>2.5.3</maven.release.version>
+		<maven.jar.version>2.6</maven.jar.version>
+		<logback.version>1.1.3</logback.version>
+		<slf4j.version>1.7.14</slf4j.version>
+		<amqp-client.version>4.2.0</amqp-client.version>
+		<kamon.version>0.6.7</kamon.version>
+	</properties>
+
+
+	<dependencies>
+
+		<!-- Akka -->
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-stream_2.11</artifactId>
+			<version>${akka.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-stream-testkit_2.11</artifactId>
+			<version>${akka.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+		  <groupId>com.typesafe.akka</groupId>
+		  <artifactId>akka-http_2.11</artifactId>
+		  <version>10.0.9</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-http-jackson_2.11</artifactId>
+			<version>10.0.9</version>
+		</dependency>
+		
+		
+		<!-- Alpakka -->
+		<dependency>
+		  <groupId>com.lightbend.akka</groupId>
+		  <artifactId>akka-stream-alpakka-amqp_2.11</artifactId>
+		  <version>0.10</version>
+		</dependency>
+		
+		<!-- Rabbit -->
+		<dependency>
+			<groupId>com.rabbitmq</groupId>
+			<artifactId>amqp-client</artifactId>
+			<version>${amqp-client.version}</version>
+		</dependency>
+
+		<!-- kamon for monitoring -->
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-core_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-akka-2.5_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-jmx_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-statsd_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-log-reporter_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-influxdb_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-system-metrics_2.11</artifactId>
+				<version>${kamon.version}</version>
+			</dependency>			
+			<dependency>
+				<groupId>io.kamon</groupId>
+				<artifactId>kamon-autoweave_2.11</artifactId>
+				<version>0.6.5</version>
+			</dependency>
+			<dependency>
+				<groupId>org.aspectj</groupId>
+				<artifactId>aspectjweaver</artifactId>
+				<version>1.8.10</version>
+			</dependency>
+		
+		
+
+		<!-- <dependency> <groupId>com.typesafe.akka</groupId> <artifactId>akka-actor_2.11</artifactId> 
+			<version>${akka.version}</version> </dependency> <dependency> <groupId>com.typesafe.akka</groupId> 
+			<artifactId>akka-http-core_2.11</artifactId> <version>${akka.version}</version> 
+			</dependency> <dependency> <groupId>com.typesafe.akka</groupId> <artifactId>akka-http-testkit_2.11</artifactId> 
+			<version>${akka.version}</version> </dependency> <dependency> <groupId>com.typesafe.akka</groupId> 
+			<artifactId>akka-testkit_2.11</artifactId> <version>${akka.version}</version> 
+			</dependency> <dependency> <groupId>com.typesafe.akka</groupId> <artifactId>akka-http-experimental_2.11</artifactId> 
+			<version>${akka.version}</version> </dependency> <dependency> <groupId>com.typesafe.akka</groupId> 
+			<artifactId>akka-http-jackson-experimental_2.11</artifactId> <version>${akka.version}</version> 
+			</dependency> -->
+
+
+
+
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Logger -->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>${logback.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+
+
+	</dependencies>
+
+	<build>
+		<finalName>devicemanager</finalName>
+		<resources>
+			<resource>
+				<directory>src/main/build</directory>
+				<filtering>true</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+			</testResource>
+		</testResources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven.compiler.version}</version>
+				<configuration>
+					<source>${jdk.version}</source>
+					<target>${jdk.version}</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>${maven.jar.version}</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<mainClass>com.real.tools.Loader</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+
+
+</project>
