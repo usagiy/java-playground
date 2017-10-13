@@ -1,7 +1,8 @@
 package hr.zlatko.actor;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.UUID;
 //import java.util.function.Function;
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import akka.Done;
 import akka.NotUsed;
 import akka.actor.ActorSystem;
 import akka.http.javadsl.ConnectHttp;
@@ -25,14 +27,23 @@ import akka.http.javadsl.model.HttpMethods;
 import akka.http.javadsl.model.HttpRequest;
 import akka.http.javadsl.model.HttpResponse;
 import akka.http.javadsl.unmarshalling.Unmarshaller;
+import akka.japi.Pair;
 import akka.japi.function.Function;
 import akka.stream.ActorMaterializer;
+import akka.stream.ClosedShape;
+import akka.stream.FanInShape2;
 import akka.stream.IOResult;
 import akka.stream.Materializer;
+import akka.stream.UniformFanOutShape;
+import akka.stream.javadsl.Broadcast;
 import akka.stream.javadsl.FileIO;
 import akka.stream.javadsl.Flow;
+import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
+import akka.stream.javadsl.Zip;
+import akka.stream.scaladsl.RunnableGraph;
+import akka.util.ByteString;
 
 public class ReactiveStreamProcess {
 	
@@ -184,10 +195,15 @@ public class ReactiveStreamProcess {
 	
 	
 	public static CompletionStage<IOResult> saveFileToDisc(String folderName, String fileName, HttpResponse response) throws IOException{
-		File file = new File(folderName, fileName);
-		file.createNewFile();
-		return response.entity().getDataBytes().runWith(FileIO.toFile(file), materializer);
+		//File file = new File(folderName, fileName);
+		//file.createNewFile();
+		return response.entity().getDataBytes().runWith(FileIO.toPath(Paths.get(folderName + fileName)), materializer);
 	}
+	
+	
+	
+	
+	
 	
 	
 	
@@ -217,11 +233,18 @@ public class ReactiveStreamProcess {
 	}
 	
 	
-	public static void streamProcess2(){
+	
+	
+	
+	public static void downloadOddPictures(){
 		//session creation
 		Source<HttpRequest, NotUsed> startSession = Source.single(HttpRequest.create().withUri("/posts/1").withMethod(HttpMethods.GET));
 		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> createConnection = 
-				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://jsonplaceholder.typicode.com", 80));		
+				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://jsonplaceholder.typicode.com", 80));
+		
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> createConnectionPhoto = 
+				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://placehold.it", 80));
+		
 		
 		Unmarshaller<HttpEntity, Post> sessionUnmarshaller = createUnmarshaller(Post.class);
 		Flow<HttpResponse, Post, NotUsed> unmarshallSession = Flow.of(HttpResponse.class).mapAsync(1, resp -> sessionUnmarshaller.unmarshal(resp.entity(), materializer));
@@ -245,6 +268,7 @@ public class ReactiveStreamProcess {
 											mapConcat(photos -> photos);
 		//filter - downloadaj samo neparne
 		Flow<Photo,  Photo, NotUsed> filterCertificates =  Flow.of(Photo.class).filter(p -> Integer.valueOf(p.getId()).intValue() % 2 > 0 );
+		//Flow<Photo,  Photo, NotUsed> filterCertificates =  Flow.of(Photo.class).filter(p -> Integer.valueOf(p.getId()).intValue() == 7 );
 		
 		
 		//DOWNLOAD ---------------------------
@@ -255,25 +279,11 @@ public class ReactiveStreamProcess {
 																	return HttpRequest.create().withUri(photo.url).withMethod(HttpMethods.GET);	
 															  });
 		
-		
-		//RANDOM FILENAME
-		//1. random name
-		
-		//Sink<Post, ?> writePost = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);
-		//Sink<ArrayList<Photo>, ?> writePhotosList = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);
-		Sink<Photo, ?> writePhoto = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);
-		
-		Sink<HttpResponse, ?> downloadCertificate = Sink.foreach(resp -> saveFileToDisc("E:\\TEMP\\download_cert", UUID.randomUUID().toString(), resp));
-		
-		
-		
-		
-		FileIO f;
-		File ff;
-		
-		
-		
-		
+		Sink<Photo, ?> writePhoto = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);		
+		Sink<HttpResponse, ?> downloadCertificate = Sink.foreach(resp -> saveFileToDisc("E:\\TEMP\\download_cert", UUID.randomUUID().toString() + ".png", resp));
+				
+		Sink<ByteString, CompletionStage<Done>> printlnSink =
+			    Sink.<ByteString> foreach(chunk -> System.out.println(chunk.utf8String()));
 		
 		
 		startSession.via(createConnection).
@@ -283,18 +293,142 @@ public class ReactiveStreamProcess {
 					 via(unmarshallCertificateList1).
 					 via(filterCertificates).
 					 via(downloadFileUrl).
-					 via(createConnection).
-					 mapAsyncUnordered(5, resp -> saveFileToDisc("E:\\TEMP\\download_cert", UUID.randomUUID().toString(), resp)).
+					 via(createConnectionPhoto).
+					 mapAsyncUnordered(5, resp -> saveFileToDisc("E:\\TEMP\\download_cert\\", UUID.randomUUID().toString() + ".png", resp)).
 					 runWith(Sink.ignore(), materializer);
-					 //runWith(downloadCertificate, materializer);
-					 //runWith(writePhoto, materializer);		
-		logger.debug("streamProces2");	
 	}
 
 	
+	public static void downloadPicturesWithNames(){
+		//session creation
+		Source<HttpRequest, NotUsed> startSession = Source.single(HttpRequest.create().withUri("/posts/1").withMethod(HttpMethods.GET));
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> createConnection = 
+				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://jsonplaceholder.typicode.com", 80));
+		
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> createConnectionPhoto = 
+				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://placehold.it", 80));
+		
+		
+		Unmarshaller<HttpEntity, Post> sessionUnmarshaller = createUnmarshaller(Post.class);
+		Flow<HttpResponse, Post, NotUsed> unmarshallSession = Flow.of(HttpResponse.class).mapAsync(1, resp -> sessionUnmarshaller.unmarshal(resp.entity(), materializer));
+		
+		//create list of certificates request
+		//we need session for request - mock it with Post TODO - use session here
+		Flow<Post, HttpRequest, NotUsed> getCertificatesList = Flow.of(Post.class).map(session -> 
+																	{
+																		session.getUserId();
+																		return HttpRequest.create().withUri("/photos").withMethod(HttpMethods.GET);
+																	});		
+		//unmarshall list of certificates
+		Unmarshaller<HttpEntity, ArrayList<Photo>> certificateListUnmarshaller = createUnmarshaller(new TypeReference<ArrayList<Photo>>(){});
+		
+		/*
+		Flow<HttpResponse,  ArrayList<Photo>, NotUsed> unmarshallCertificateList = Flow.of(HttpResponse.class)
+																					.mapAsync(1, resp -> certificateListUnmarshaller.unmarshal(resp.entity(), materializer));
+		*/																			
+		Flow<HttpResponse,  Photo, NotUsed> unmarshallCertificateList1 = Flow.of(HttpResponse.class)
+											.mapAsync(1, resp -> certificateListUnmarshaller.unmarshal(resp.entity(), materializer)).
+											mapConcat(photos -> photos);
+		//filter - downloadaj samo neparne
+		Flow<Photo,  Photo, NotUsed> filterCertificates =  Flow.of(Photo.class).filter(p -> Integer.valueOf(p.getId()).intValue() % 100 == 0 );
+		//Flow<Photo,  Photo, NotUsed> filterCertificates =  Flow.of(Photo.class).filter(p -> Integer.valueOf(p.getId()).intValue() == 7 );
+		
+		
+		//DOWNLOAD ---------------------------
+		//download certificates Url		
+		Flow<Photo,  HttpRequest, NotUsed> downloadFileUrl =  Flow.of(Photo.class).map(photo -> 
+															  {	
+																	logger.debug("Downloading file url: {}", photo.url);
+																	return HttpRequest.create().withUri(photo.url).withMethod(HttpMethods.GET);	
+															  });
+		
+		Sink<Photo, ?> writePhoto = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);		
+		Sink<HttpResponse, ?> downloadCertificate = Sink.foreach(resp -> saveFileToDisc("E:\\TEMP\\download_cert", UUID.randomUUID().toString() + ".png", resp));
+				
+		Sink<ByteString, CompletionStage<Done>> printlnSink =
+			    Sink.<ByteString> foreach(chunk -> System.out.println(chunk.utf8String()));
+		
+	
+		
+		//LETS BUILD GRAPH
+		
+		RunnableGraph.fromGraph(GraphDSL.create(b -> {
+			//fan out
+			final UniformFanOutShape<Photo, Photo> bcast = b.add(Broadcast.create(2));
+			
+			//merging
+			 final FanInShape2<HttpResponse, Photo, Pair<HttpResponse, Photo>> zip =
+			          b.add(Zip.create());
+			//async save
+			 final Flow<Pair<HttpResponse, Photo>, IOResult, NotUsed> saveFile =
+					    Flow.<Pair<HttpResponse, Photo>>create().
+					    	mapAsyncUnordered(5, p ->  saveFileToDisc("E:\\TEMP\\download_cert\\", p.second().getId() + ".png", p.first()));
+				
+			b.from(b.add(startSession)).
+			via(b.add(createConnection)).
+			via(b.add(unmarshallSession)).
+			via(b.add(getCertificatesList)).
+			via(b.add(createConnection)).
+			via(b.add(unmarshallCertificateList1)).
+			via(b.add(filterCertificates)).
+			//fan out photo 
+			viaFanOut(bcast).via(b.add(downloadFileUrl)).via(b.add(createConnectionPhoto)).toInlet(zip.in0());
+			b.from(bcast).toInlet(zip.in1());
+			//from merge
+			b.from(zip.out()).via(b.add(saveFile)).to(b.add(Sink.ignore())); //.to(Sink.ignore());			
+			//viaFanOut(bcast);			
+			return ClosedShape.getInstance();					
+		})).run(materializer);
+	
+	}
 	
 	
-
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public static void fileExperiments(){
+		
+		final Path file = Paths.get("E:\\TEMP\\copy_file\\original.json");
+		  
+		Sink<ByteString, CompletionStage<Done>> printlnSink =
+		    Sink.<ByteString> foreach(chunk -> System.out.println(chunk.utf8String()));
+				
+		final Path fileCopy = Paths.get("E:\\TEMP\\copy_file\\copy.json");
+		Sink<ByteString, CompletionStage<Done>> copyFileSink =
+			    Sink.<ByteString> foreach(chunk -> FileIO.toPath(fileCopy));
+		  
+		  CompletionStage<IOResult> ioResult =
+		    FileIO.fromPath(file)
+		      //.to(printlnSink)
+		       .to(FileIO.toPath(fileCopy))
+		      .run(materializer);		
+	}
+	
+	
+	
+	public static void downloadFile(){
+		
+		Source<HttpRequest, NotUsed> startSession = Source.single(HttpRequest.create().withUri("/600/92c952").withMethod(HttpMethods.GET));
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> createConnection = 
+				Http.get(system).outgoingConnection(ConnectHttp.toHost("http://placehold.it", 80));			
+		startSession.
+		via(createConnection).
+		mapAsyncUnordered(5, resp -> saveFileToDisc("E:\\TEMP\\download_cert\\", UUID.randomUUID().toString() + ".png", resp)).
+		runWith(Sink.ignore(), materializer);
+	}
+	
+	
+	
+	
 	public static void classicApproach(){
 		
 		Unmarshaller<HttpEntity, Post> unmarshaller = Unmarshaller.entityToString().
@@ -366,9 +500,15 @@ public class ReactiveStreamProcess {
 	
 	public static void main(String[] args){
 		//streamProcess1();
-		streamProcess2();
+		
 		//classicApproach();
 		//testUnmarshaller();
+		
+		//fileExperiments();
+		//RADI
+		//downloadFile();
+		//downloadOddPictures();
+		downloadPicturesWithNames();
 	}
 	
 	
