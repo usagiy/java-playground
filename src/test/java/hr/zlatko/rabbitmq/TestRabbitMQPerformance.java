@@ -21,7 +21,8 @@ public class TestRabbitMQPerformance {
 private final static Logger logger = LoggerFactory.getLogger(TestRabbitMQPerformance.class);
 	
 	private final static String QUEUE_NAME = "PERFORMANCE_TEST";
-	private final static int NUM_MESSAGES = 100000;	
+	//private final static int NUM_MESSAGES = 100000;
+	private final static int NUM_MESSAGES = 10;
 	private final static String TEST_MESSAGE = "{\"eventType\":\"TELEVEND_MESSAGE\",\"evendData\":{\"@class\":\"com.intis.devicemanager.common.message.televend.TelevendMessages$DAudit\",\"pid\":\"11\",\"data\":\"LOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONG AUDIT DATA BLAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"id\":\"11\",\"audit_number\":\"auditNumber\",\"externalMessageId\":null,\"command\":\"D_AUDIT\"}}";
 	
 	//100000 poruka za 5 sec ako nije durable
@@ -79,6 +80,7 @@ private final static Logger logger = LoggerFactory.getLogger(TestRabbitMQPerform
 		
 		ConnectionFactory factory = new ConnectionFactory();
 		factory.setHost("localhost");
+		logger.info("Is auto-recovery  enabled:{} ", factory.isAutomaticRecoveryEnabled());
 		Connection connection = factory.newConnection();
 		Channel channel = connection.createChannel();
 		boolean durable = true;

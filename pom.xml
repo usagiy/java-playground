@@ -43,13 +43,13 @@
 		<dependency>
 		  <groupId>com.typesafe.akka</groupId>
 		  <artifactId>akka-http_2.11</artifactId>
-		  <version>10.0.9</version>
+		  <version>10.0.10</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-http-jackson_2.11</artifactId>
-			<version>10.0.9</version>
+			<version>10.0.10</version>
 		</dependency>
 		
 		
@@ -58,6 +58,20 @@
 		  <groupId>com.lightbend.akka</groupId>
 		  <artifactId>akka-stream-alpakka-amqp_2.11</artifactId>
 		  <version>0.10</version>
+		</dependency>
+		
+		<!-- Kafka -->
+		<dependency>
+		  <groupId>com.typesafe.akka</groupId>
+		  <artifactId>akka-stream-kafka_2.11</artifactId>
+		  <version>0.17</version>
+		</dependency>
+		
+		<!-- Kafka standalone -->
+		<dependency>
+		    <groupId>org.apache.kafka</groupId>
+		    <artifactId>kafka-clients</artifactId>
+		    <version>1.0.0</version>
 		</dependency>
 		
 		<!-- Rabbit -->

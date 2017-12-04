@@ -1,12 +1,23 @@
 package hr.zlatko.actor;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.UUID;
 //import java.util.function.Function;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.IntStream;
+
+import javax.net.ssl.SSLContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,13 +26,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.sslconfig.akka.AkkaSSLConfig;
+import com.typesafe.sslconfig.ssl.SSLDebugConfig;
 
 import akka.Done;
 import akka.NotUsed;
 import akka.actor.ActorSystem;
 import akka.http.javadsl.ConnectHttp;
 import akka.http.javadsl.Http;
+import akka.http.javadsl.HttpsConnectionContext;
 import akka.http.javadsl.OutgoingConnection;
+import akka.http.javadsl.Http;
 import akka.http.javadsl.model.HttpEntity;
 import akka.http.javadsl.model.HttpMethods;
 import akka.http.javadsl.model.HttpRequest;
@@ -49,7 +65,7 @@ public class ReactiveStreamProcess {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ReactiveStreamProcess.class);
 
-	static final ActorSystem system = ActorSystem.create("ReactiveStreamProcess");
+	static final ActorSystem system = ActorSystem.create("ReactiveStreamProcess",  ConfigFactory.load("application"));	
 	static final Materializer materializer = ActorMaterializer.create(system);
 	
 	
@@ -497,8 +513,173 @@ public class ReactiveStreamProcess {
 		return p;
 	}
 	
+	public static void unixTimestamp(){
+		//String startDateString = "05/11/2017";
+		//String startDateString = "01/01/1970";
+		
+		String startDateString = "09/11/2017 23:59:59";
+		//DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+		DateFormat df = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
+		Date startDate;
+		try {
+		    
+			logger.debug("Timezone: {}",df.getTimeZone());
+			startDate = df.parse(startDateString);
+		    String newDateString = df.format(startDate);
+		    
+		    //startDate = Date.from(Instant.EPOCH);
+		    Long timestamp = startDate.getTime()/1000;
+		    logger.debug(newDateString);
+		    logger.debug("Unix timestamp {}", timestamp);		   
+		} catch (ParseException e) {
+		    e.printStackTrace();
+		}
+		
+	}
 	
-	public static void main(String[] args){
+	
+	public static void copyFiles(){
+		
+		Path sourcePath   = Paths.get("E:\\DeviceManager\\LocalTest\\certificate\\1.cer");
+		
+		IntStream.range(5000, 10000).forEach(i -> {
+			Path destinationPath   = Paths.get("E:\\DeviceManager\\LocalTest\\certificate\\" + Integer.toString(i) +".cer");
+			 try {
+				Files.copy(sourcePath, destinationPath);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		});
+	}
+	
+	
+	/*
+	
+	public HttpsConnectionContext useHttps(ActorSystem system) {
+		HttpsConnectionContext https = null;
+		try {
+		  
+			
+		    final char[] password = properties.keystorePassword().toCharArray();
+		  
+			final char[] password = "".toCharArray();
+			
+			
+		  final KeyStore ks = KeyStore.getInstance("PKCS12");
+		  final InputStream keystore = WDService.class.getClassLoader().getResourceAsStream("wtkeystore.p12");
+		  if (keystore == null) {
+		    throw new RuntimeException("Keystore required!");
+		  }
+		  ks.load(keystore, password);
+		  final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
+		  keyManagerFactory.init(ks, password);
+
+		  final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+		  tmf.init(ks);
+			
+		  final SSLContext sslContext = SSLContext.getInstance("TLS");
+		  sslContext.init(keyManagerFactory.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+		  final AkkaSSLConfig sslConfig = AkkaSSLConfig.get(system);
+		  https = ConnectionContext.https(sslContext);
+		} catch (NoSuchAlgorithmException | KeyManagementException e) {
+		  system.log().error(e.getCause() + " while configuring HTTPS.", e);
+		} catch (CertificateException | KeyStoreException | UnrecoverableKeyException | IOException e) {
+		  system.log().error(e.getCause() + " while ", e);
+		}
+	}
+	
+	*/
+	
+	public static void testHttps() throws InterruptedException{
+		
+		CountDownLatch startSignal = new CountDownLatch(1);		
+		final Http http = Http.get(system);
+		final AkkaSSLConfig defaultSSLConfig = AkkaSSLConfig.get(system);
+	
+		
+		final AkkaSSLConfig badSslConfig = defaultSSLConfig
+				  .convertSettings(s -> {
+					  			return s.withLoose(s.loose().withDisableSNI(true).
+					  					 withDisableHostnameVerification(true).
+					  					 withAcceptAnyCertificate(true).
+					  					 withAllowWeakCiphers(true));
+					  					 //withDebug(SSLDebugConfig.getInstance().withAll(true));
+				});
+		final HttpsConnectionContext badCtx = http.createClientHttpsContext(badSslConfig);
+		
+		
+		//Ucitaj settinge
+		final AkkaSSLConfig zlatkoSslConfig = defaultSSLConfig
+				  .convertSettings(s -> {
+					  			return s.withDebug(SSLDebugConfig.getInstance().withAll(true)).withProtocol("TLS");
+				});
+		final HttpsConnectionContext zlatkoCtx = http.createClientHttpsContext(zlatkoSslConfig);
+		
+		
+		
+		final HttpsConnectionContext okCtx = http.createClientHttpsContext(defaultSSLConfig);
+			
+		Source<HttpRequest, NotUsed> src = Source.single(HttpRequest.create().withUri("/").withMethod(HttpMethods.GET));
+		/*
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> conn = 
+				Http.get(system).outgoingConnection (ConnectHttp.toHostHttps("https://httpbin.org").withDefaultHttpsContext());		
+		*/
+		
+		
+		//RADI !
+		/*
+		Flow<HttpRequest, HttpResponse, CompletionStage<OutgoingConnection>> conn = 
+				Http.get(system).outgoingConnection (ConnectHttp.toHost("https://github.com"));
+		*/
+		
+		//RADI !
+		
+		/*
+		Flow<HttpRequest, HttpResponse, NotUsed> conn = 
+				Flow.of(HttpRequest.class).map(req -> { logger.debug("Request: {}", req); 
+														return req;
+													  } ).
+				via(Http.get(system).outgoingConnection (ConnectHttp.toHost("https://uk.godaddy.com"))).
+				via(
+				 Flow.of(HttpResponse.class).map(resp -> { logger.debug("Response: {}", resp); 
+						return resp;
+					  } )
+				);
+		*/	
+		
+		
+		
+		Flow<HttpRequest, HttpResponse, NotUsed> conn = 
+				Flow.of(HttpRequest.class).map(req -> { logger.debug("Request: {}", req); 
+														return req;
+													  } ).
+				via(http.outgoingConnection (ConnectHttp.toHostHttps("https://github.com", 443).withCustomHttpsContext(badCtx))).
+				via(
+				 Flow.of(HttpResponse.class).map(resp -> { logger.debug("Response: {}", resp); 
+						startSignal.countDown();
+				 		return resp;
+					  } )
+		);
+		
+		Unmarshaller<HttpEntity, String> unmarshaller = Unmarshaller.entityToString();
+		Flow<HttpResponse, CompletionStage<String>, NotUsed> fl = Flow.of(HttpResponse.class).map(resp -> unmarshaller.unmarshal(resp.entity(), materializer));
+		Function<HttpResponse, CompletionStage<String>> toPos = resp ->  unmarshaller.unmarshal(resp.entity(), materializer);
+				
+		Flow<HttpResponse, String, NotUsed> fl2 = Flow.of(HttpResponse.class).mapAsync(1, resp -> unmarshaller.unmarshal(resp.entity(), materializer));
+		
+		Sink<String, ?> writePost = Sink.foreach(s -> logger.debug("Got output {}",s)); // Sink.foreach(System.out::println);		
+		src.via(conn).via(fl2).runWith(writePost, materializer);
+		
+		logger.debug("waiting");	
+		startSignal.await();
+		logger.debug("blaaaaa");	
+	}
+	
+	
+	
+	
+	public static void main(String[] args) throws InterruptedException{
 		//streamProcess1();
 		
 		//classicApproach();
@@ -508,7 +689,11 @@ public class ReactiveStreamProcess {
 		//RADI
 		//downloadFile();
 		//downloadOddPictures();
-		downloadPicturesWithNames();
+		//downloadPicturesWithNames();
+		unixTimestamp();
+		//copyFiles();
+		//testHttps();
+		
 	}
 	
 	
